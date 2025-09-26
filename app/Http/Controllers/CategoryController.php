@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCategoryRequest;
 use App\Http\Requests\UpdateCategoryrequest;
+use App\Http\Resources\CategoryResource;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class CategoryController extends Controller
             return response()->json(['message' => 'Category not found'], 404);
         }
 
-        return response()->json(['category' => $category], 200);
+        return response()->json($category, 200);
     }
 
     /**
@@ -90,5 +91,29 @@ class CategoryController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete category.'], 500);
         }
+    }
+
+    public function list(Request $request)
+    {
+        $query = Category::query();
+
+        if ($request->has('searchtext') && !empty($request->input('searchtext'))) {
+            $search = $request->input('searchtext');
+            $query
+                ->whereLike('name', '%' . $search . '%')
+                ->orWhereLike('description', '%' . $search . '%');
+        }
+
+        if ($request->has('sort_field') && $request->has('sort_direction')) {
+            $query->orderBy($request->input('sort_field'), $request->input('sort_direction'));
+        } else {
+            $query->orderBy('name', 'asc'); // Default sorting
+        }
+
+        $categories = CategoryResource::collection(
+            $query->orderBy('name', 'asc')->paginate($request->input('per_page', 5))
+        );
+
+        return $categories;
     }
 }

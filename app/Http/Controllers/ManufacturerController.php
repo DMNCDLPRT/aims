@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreManufacturereRequest;
 use App\Http\Requests\UpdateManufacturereRequest;
+use App\Http\Resources\ManufacturerResource;
 use App\Models\Manufacturer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,7 @@ class ManufacturerController extends Controller
             return response()->json(['message' => 'Manufacturer not found'], 404);
         }
 
-        return response()->json(['manufacturer' => $manufacturer], 200);
+        return response()->json($manufacturer, 200);
     }
 
     /**
@@ -88,5 +89,32 @@ class ManufacturerController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete manufacturer.'], 500);
         }
+    }
+
+    public function list(Request $request)
+    {
+        $query = Manufacturer::query();
+
+        if ($request->has('searchtext') && !empty($request->input('searchtext'))) {
+            $search = $request->input('searchtext');
+            $query
+                ->whereLike('name', '%' . $search . '%')
+                ->orWhereLike('url', '%' . $search . '%')
+                ->orWhereLike('support_url', '%' . $search . '%')
+                ->orWhereLike('support_phone', '%' . $search . '%')
+                ->orWhereLike('support_email', '%' . $search . '%');
+        }
+
+        if ($request->has('sort_field') && $request->has('sort_direction')) {
+            $query->orderBy($request->input('sort_field'), $request->input('sort_direction'));
+        } else {
+            $query->orderBy('name', 'asc'); // Default sorting
+        }
+
+        $manufacturers = ManufacturerResource::collection(
+            $query->orderBy('name', 'asc')->paginate($request->input('per_page', 5))
+        );
+
+        return $manufacturers;
     }
 }

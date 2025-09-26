@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreLocationRequest;
 use App\Http\Requests\UpdateLocationRequest;
+use App\Http\Resources\LocationResource;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,7 @@ class LocationController extends Controller
             return response()->json(['message' => 'Location not found'], 404);
         }
 
-        return response()->json(['location' => $location], 200);
+        return response()->json($location, 200);
     }
 
     /**
@@ -88,5 +89,29 @@ class LocationController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete location.'], 500);
         }
+    }
+
+    public function list(Request $request)
+    {
+        $query = Location::query();
+
+        if ($request->has('searchtext') && !empty($request->input('searchtext'))) {
+            $search = $request->input('searchtext');
+            $query
+                ->whereLike('name', '%' . $search . '%')
+                ->orWhereLike('address', '%' . $search . '%');
+        }
+
+        if ($request->has('sort_field') && $request->has('sort_direction')) {
+            $query->orderBy($request->input('sort_field'), $request->input('sort_direction'));
+        } else {
+            $query->orderBy('name', 'asc'); // Default sorting
+        }
+
+        $locations = LocationResource::collection(
+            $query->orderBy('name', 'asc')->paginate($request->input('per_page', 5))
+        );
+
+        return $locations;
     }
 }

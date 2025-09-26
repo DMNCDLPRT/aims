@@ -26,8 +26,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleModdleware::class,
         ]);
         $middleware->validateCsrfTokens(except: [
+            'dashboard',
+            'dashboard/*',
+
             'categories',
             'categories/*',
+            'categories/list',
             'assets',
             'assets/*',
             'locations',

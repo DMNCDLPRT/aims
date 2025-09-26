@@ -4,7 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreAssetRequest;
 use App\Http\Requests\UpdateAssetRequest;
+use App\Http\Resources\AssetsResource;
 use App\Models\Asset;
+use App\Models\Category;
+use App\Models\Location;
+use App\Models\Manufacturer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +21,17 @@ class AssetController extends Controller
      */
     public function index()
     {
-        return inertia('asset/index');
+        $categories = Category::orderBy('name', 'asc')->get(['id', 'name']);
+        $locations = Location::orderBy('name', 'asc')->get(['id', 'name']);
+        $manufacturers = Manufacturer::orderBy('name', 'asc')->get(['id', 'name']);
+        $users = User::orderBy('name', 'asc')->get(['id', 'name']);
+
+        return inertia('asset/index', [
+            'categories' => $categories,
+            'locations' => $locations,
+            'manufacturers' => $manufacturers,
+            'users' => $users,
+        ]);
     }
 
     /**
@@ -39,13 +54,15 @@ class AssetController extends Controller
      */
     public function show(Asset $asset)
     {
-        $asset = Asset::findOrFail($asset->id);
+        $asset = Asset::with(['category', 'location', 'manufacturer', 'assignedToUser'])
+            ->findOrFail($asset->id);
+
 
         if (!$asset) {
             return response()->json(['message' => 'Asset not found'], 404);
         }
 
-        return response()->json(['asset' => $asset], 200);
+        return response()->json($asset, 200);
     }
 
     /**
@@ -88,5 +105,48 @@ class AssetController extends Controller
             Log::error('error: ' . $e->getMessage());
             return response()->json(['message', 'Asset deleted successfully']);
         }
+    }
+
+    public function list(Request $request)
+    {
+        $query = Asset::query();
+        $query->with([
+            'category',
+            'manufacturer',
+            'location',
+            'assignedToUser'
+        ]);
+
+        if ($request->filled('searchtext')) {
+            $search = $request->input('searchtext');
+
+            $query->where(function ($q) use ($search) {
+                $q->where('asset_tag', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('model_name', 'like', "%{$search}%")
+                    ->orWhere('purchase_date', 'like', "%{$search}%")
+                    ->orWhere('purchase_price', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    // Related models
+                    ->orWhereHas('category', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('manufacturer', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('location', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('assignedToUser', fn($q) => $q->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($request->has('sort_field') && $request->has('sort_direction')) {
+            $query->orderBy($request->input('sort_field'), $request->input('sort_direction'));
+        } else {
+            $query->orderBy('name', 'asc'); // Default sorting
+        }
+
+        $assets = AssetsResource::collection(
+            $query->paginate($request->input('per_page', 5))
+        );
+
+        return $assets;
     }
 }

@@ -9,7 +9,13 @@ class Manufacturer extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'url', 'support_url', 'support_phone', 'support_email'];
+    protected $fillable = [
+        'name',
+        'url',
+        'support_email',
+        'support_url',
+        'support_phone',
+    ];
 
     public function assets()
     {

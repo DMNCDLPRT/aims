@@ -41,7 +41,7 @@ const mainNavItems: NavItem[] = [
         title: 'Assets',
         href: assets.index().url,
         icon: List,
-        roles: ['super_admin', 'inventory_manager'],
+        roles: ['super_admin', 'inventory_manager', 'inventory_user'],
     },
     {
         title: 'Categories',
@@ -59,7 +59,7 @@ const mainNavItems: NavItem[] = [
         title: 'Manufacturers',
         href: manufacturers.index().url,
         icon: Factory,
-        roles: ['super_admin', 'inventory_user'],
+        roles: ['super_admin', 'inventory_manager'],
     },
 ];
 
